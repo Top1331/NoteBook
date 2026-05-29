@@ -470,6 +470,23 @@
       </svg>
       新建
     </button>
+    <button class="btn" id="exportBtn" title="导出数据">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      导出
+    </button>
+    <button class="btn" id="importBtn" title="导入数据">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      导入
+    </button>
+    <input type="file" id="importFile" accept=".json" style="display:none" />
   </div>
 
   <!-- Stats -->
@@ -892,6 +909,57 @@
     headerDate.textContent = d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
   }
   updateHeaderDate();
+
+  // ──────────────────────────────────────────
+  // Export
+  // ──────────────────────────────────────────
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    if (!notes.length) { showToast('没有数据可导出'); return; }
+    const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const d = new Date();
+    a.download = `日记本备份_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`已导出 ${notes.length} 条记录`);
+  });
+
+  // ──────────────────────────────────────────
+  // Import
+  // ──────────────────────────────────────────
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(reader.result);
+        if (!Array.isArray(imported)) throw new Error('格式错误');
+        const existingIds = new Set(notes.map(n => n.id));
+        let added = 0, merged = 0;
+        imported.forEach(n => {
+          if (existingIds.has(n.id)) { merged++; return; }
+          if (!n.id || !n.createdAt) return;
+          notes.push(n);
+          added++;
+        });
+        notes.sort((a, b) => b.createdAt - a.createdAt);
+        saveNotes(notes);
+        renderNotes();
+        showToast(`导入完成：新增 ${added} 条${merged ? `，跳过 ${merged} 条重复` : ''}`);
+      } catch (err) {
+        showToast('文件格式错误，请选择 .json 备份文件');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
 
   // ──────────────────────────────────────────
   // Init
