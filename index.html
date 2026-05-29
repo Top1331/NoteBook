@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日记本</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f5f0;
+      --surface: #ffffff;
+      --surface2: #f2f0eb;
+      --border: #e8e4dc;
+      --border2: #d4cfc4;
+      --text: #2c2a26;
+      --text2: #7a776f;
+      --text3: #a8a49c;
+      --accent: #5c7a5e;
+      --accent-light: #e8f0e9;
+      --accent-text: #3d5e3f;
+      --danger: #c0392b;
+      --danger-light: #fdf0ee;
+      --tag-bg: #ede8e0;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent-text);
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-logo svg { opacity: 0.75; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .btn:hover { background: var(--surface2); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-text); border-color: var(--accent-text); }
+    .btn-danger { color: var(--danger); border-color: var(--border2); }
+    .btn-danger:hover { background: var(--danger-light); border-color: var(--danger); }
+    .btn-icon {
+      padding: 7px 8px;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+    }
+    .btn-icon:hover { background: var(--surface2); color: var(--text); }
+
+    /* ── Layout ── */
+    .app { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+
+    /* ── Search & Filter bar ── */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .search-wrap {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text3);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text3); }
+
+    .filter-select {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .filter-select:focus { border-color: var(--accent); }
+
+    /* ── Stats bar ── */
+    .stats {
+      font-size: 13px;
+      color: var(--text3);
+      margin-bottom: 16px;
+    }
+    .stats b { color: var(--text2); font-weight: 500; }
+
+    /* ── Notes grid ── */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    /* ── Note card ── */
+    .note-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+      position: relative;
+      animation: fadeIn 0.2s ease;
+    }
+    .note-card:hover {
+      border-color: var(--border2);
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .note-mood {
+      font-size: 20px;
+      margin-bottom: 10px;
+      line-height: 1;
+    }
+    .note-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .note-preview {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.55;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 14px;
+      word-break: break-word;
+    }
+    .note-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .note-date {
+      font-size: 12px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+    .note-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: var(--tag-bg);
+      color: var(--text2);
+      white-space: nowrap;
+    }
+    .note-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .note-card:hover .note-actions { opacity: 1; }
+    .note-actions .btn-icon { padding: 4px 6px; border-radius: 6px; font-size: 13px; }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text3);
+      grid-column: 1 / -1;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty p { font-size: 15px; color: var(--text2); margin-bottom: 8px; }
+    .empty small { font-size: 13px; }
+
+    /* ── FAB ── */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      z-index: 50;
+    }
+    .fab:hover { background: var(--accent-text); transform: scale(1.05); }
+    .fab:active { transform: scale(0.96); }
+
+    /* ── Modal overlay ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(2px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    /* ── Modal ── */
+    .modal {
+      background: var(--surface);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 0.2s;
+    }
+    .overlay.open .modal { transform: translateY(0) scale(1); }
+
+    .modal-header {
+      padding: 20px 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-body { padding: 16px 20px 20px; flex: 1; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--accent); background: var(--surface); }
+    .form-textarea { resize: vertical; min-height: 140px; line-height: 1.65; }
+
+    .mood-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .mood-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background: var(--surface2);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .mood-btn.selected { border-color: var(--accent); background: var(--accent-light); }
+    .mood-btn:hover { background: var(--accent-light); }
+
+    .form-footer {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    /* ── View modal ── */
+    .view-content {
+      padding: 0 20px 24px;
+    }
+    .view-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .view-body {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Delete confirm ── */
+    .confirm-modal {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 24px;
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+      transform: scale(0.95);
+      transition: transform 0.2s;
+    }
+    .overlay.open .confirm-modal { transform: scale(1); }
+    .confirm-icon { font-size: 36px; margin-bottom: 10px; }
+    .confirm-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .confirm-desc { font-size: 14px; color: var(--text2); margin-bottom: 20px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .header { padding: 0 14px; }
+      .app { padding: 16px 12px 80px; }
+      .notes-grid { grid-template-columns: 1fr; gap: 10px; }
+      .modal { max-height: 95vh; border-radius: 16px 16px 0 0; }
+      .overlay { align-items: flex-end; padding: 0; }
+      .note-actions { opacity: 1; }
+      .fab { bottom: 20px; right: 16px; }
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 88px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: #2c2a26;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+    日记本
+  </div>
+  <div class="header-actions">
+    <span id="headerDate" style="font-size:13px;color:var(--text3);"></span>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="app">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="search-input" id="searchInput" type="text" placeholder="搜索记录…" />
+    </div>
+    <select class="filter-select" id="filterSelect">
+      <option value="all">全部</option>
+      <option value="today">今天</option>
+      <option value="week">本周</option>
+      <option value="month">本月</option>
+    </select>
+    <button class="btn btn-primary" id="newBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      新建
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsBar"></div>
+
+  <!-- Notes -->
+  <div class="notes-grid" id="notesGrid"></div>
+</main>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" title="新建记录">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Edit / Create Modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="editTitle">新建记录</span>
+      <button class="btn btn-icon" id="editClose">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">标题</label>
+        <input class="form-input" id="editTitleInput" type="text" placeholder="给这条记录起个标题…" maxlength="80" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">心情</label>
+        <div class="mood-row" id="moodRow"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">内容</label>
+        <textarea class="form-textarea" id="editContent" placeholder="写下今天发生的事情…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">标签（用空格分隔）</label>
+        <input class="form-input" id="editTags" type="text" placeholder="例：学习 工作 生活" />
+      </div>
+      <div class="form-footer">
+        <button class="btn" id="editCancelBtn">取消</button>
+        <button class="btn btn-primary" id="editSaveBtn">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="overlay" id="viewOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="viewTitle"></span>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-icon" id="viewEditBtn" title="编辑">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="btn btn-icon" id="viewClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="view-content">
+      <div class="view-meta" id="viewMeta"></div>
+      <div class="view-body" id="viewBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">删除这条记录？</div>
+    <div class="confirm-desc">此操作不可撤销，记录将被永久删除。</div>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmCancel">取消</button>
+      <button class="btn btn-danger" id="confirmDelete">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ──────────────────────────────────────────
+  // Data layer
+  // ──────────────────────────────────────────
+  const STORAGE_KEY = 'daily_notes_v1';
+
+  function loadNotes() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveNotes(notes) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  }
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  let notes = loadNotes();
+
+  // ──────────────────────────────────────────
+  // DOM refs
+  // ──────────────────────────────────────────
+  const notesGrid = document.getElementById('notesGrid');
+  const searchInput = document.getElementById('searchInput');
+  const filterSelect = document.getElementById('filterSelect');
+  const statsBar = document.getElementById('statsBar');
+  const headerDate = document.getElementById('headerDate');
+
+  const editOverlay = document.getElementById('editOverlay');
+  const editTitle = document.getElementById('editTitle');
+  const editTitleInput = document.getElementById('editTitleInput');
+  const editContent = document.getElementById('editContent');
+  const editTags = document.getElementById('editTags');
+  const editSaveBtn = document.getElementById('editSaveBtn');
+  const editCancelBtn = document.getElementById('editCancelBtn');
+  const editClose = document.getElementById('editClose');
+
+  const viewOverlay = document.getElementById('viewOverlay');
+  const viewTitle = document.getElementById('viewTitle');
+  const viewMeta = document.getElementById('viewMeta');
+  const viewBody = document.getElementById('viewBody');
+  const viewEditBtn = document.getElementById('viewEditBtn');
+  const viewClose = document.getElementById('viewClose');
+
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmCancel = document.getElementById('confirmCancel');
+  const confirmDelete = document.getElementById('confirmDelete');
+
+  const toast = document.getElementById('toast');
+
+  // ──────────────────────────────────────────
+  // Moods
+  // ──────────────────────────────────────────
+  const MOODS = ['😊','😄','😐','😔','😤','😴','🥳','💪','🤔','❤️'];
+  let selectedMood = '';
+
+  function renderMoodRow() {
+    const row = document.getElementById('moodRow');
+    row.innerHTML = '';
+    MOODS.forEach(m => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mood-btn' + (m === selectedMood ? ' selected' : '');
+      btn.textContent = m;
+      btn.onclick = () => {
+        selectedMood = selectedMood === m ? '' : m;
+        renderMoodRow();
+      };
+      row.appendChild(btn);
+    });
+  }
+
+  // ──────────────────────────────────────────
+  // Date helpers
+  // ──────────────────────────────────────────
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+    if (diff < 86400 && d.getDate() === now.getDate()) return '今天 ' + d.toTimeString().slice(0,5);
+    if (diff < 172800 && d.getDate() === now.getDate() - 1) return '昨天 ' + d.toTimeString().slice(0,5);
+    return d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) + ' ' + d.toTimeString().slice(0,5);
+  }
+  function fmtDateFull(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) + ' ' + d.toTimeString().slice(0,5);
+  }
+  function isToday(ts) {
+    const d = new Date(ts), now = new Date();
+    return d.toDateString() === now.toDateString();
+  }
+  function isThisWeek(ts) {
+    const d = new Date(ts), now = new Date();
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+    weekStart.setHours(0,0,0,0);
+    return d >= weekStart;
+  }
+  function isThisMonth(ts) {
+    const d = new Date(ts), now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+
+  // ──────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────
+  function getFilteredNotes() {
+    const q = searchInput.value.trim().toLowerCase();
+    const f = filterSelect.value;
+    return notes.filter(n => {
+      const matchQ = !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || (n.tags||[]).some(t => t.includes(q));
+      let matchF = true;
+      if (f === 'today') matchF = isToday(n.createdAt);
+      if (f === 'week') matchF = isThisWeek(n.createdAt);
+      if (f === 'month') matchF = isThisMonth(n.createdAt);
+      return matchQ && matchF;
+    }).sort((a,b) => b.createdAt - a.createdAt);
+  }
+
+  function renderNotes() {
+    const filtered = getFilteredNotes();
+    notesGrid.innerHTML = '';
+
+    statsBar.innerHTML = filtered.length
+      ? `共 <b>${filtered.length}</b> 条记录`
+      : '';
+
+    if (!filtered.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = `<div class="empty-icon">📝</div>
+        <p>${notes.length === 0 ? '还没有记录' : '没有找到匹配的记录'}</p>
+        <small>${notes.length === 0 ? '点击右下角 + 开始记录你的第一篇日记' : '换个关键词试试？'}</small>`;
+      notesGrid.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach(note => {
+      const card = document.createElement('div');
+      card.className = 'note-card';
+      const tags = (note.tags || []).slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+      card.innerHTML = `
+        ${note.mood ? `<div class="note-mood">${note.mood}</div>` : ''}
+        <div class="note-title">${esc(note.title || '无标题')}</div>
+        <div class="note-preview">${esc(note.content)}</div>
+        <div class="note-footer">
+          <span class="note-date">${fmtDate(note.createdAt)}</span>
+          <div class="note-tags">${tags}</div>
+          <div class="note-actions">
+            <button class="btn btn-icon edit-btn" data-id="${note.id}" title="编辑">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="btn btn-icon delete-btn" data-id="${note.id}" title="删除">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+      card.addEventListener('click', e => {
+        if (e.target.closest('.note-actions')) return;
+        openViewModal(note.id);
+      });
+      card.querySelector('.edit-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        openEditModal(note.id);
+      });
+      card.querySelector('.delete-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        openConfirm(note.id);
+      });
+      notesGrid.appendChild(card);
+    });
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ──────────────────────────────────────────
+  // Edit Modal
+  // ──────────────────────────────────────────
+  let editingId = null;
+
+  function openEditModal(id) {
+    editingId = id || null;
+    const note = id ? notes.find(n => n.id === id) : null;
+    editTitle.textContent = id ? '编辑记录' : '新建记录';
+    editTitleInput.value = note ? note.title : '';
+    editContent.value = note ? note.content : '';
+    editTags.value = note ? (note.tags || []).join(' ') : '';
+    selectedMood = note ? (note.mood || '') : '';
+    renderMoodRow();
+    editOverlay.classList.add('open');
+    setTimeout(() => editTitleInput.focus(), 100);
+  }
+
+  function closeEditModal() {
+    editOverlay.classList.remove('open');
+    editingId = null;
+  }
+
+  function saveNote() {
+    const title = editTitleInput.value.trim();
+    const content = editContent.value.trim();
+    if (!title && !content) { showToast('请输入标题或内容'); return; }
+    const tags = editTags.value.trim().split(/\s+/).filter(Boolean);
+    if (editingId) {
+      const idx = notes.findIndex(n => n.id === editingId);
+      if (idx > -1) {
+        notes[idx] = { ...notes[idx], title, content, tags, mood: selectedMood, updatedAt: Date.now() };
+        showToast('记录已更新 ✓');
+      }
+    } else {
+      notes.unshift({ id: genId(), title, content, tags, mood: selectedMood, createdAt: Date.now(), updatedAt: Date.now() });
+      showToast('记录已保存 ✓');
+    }
+    saveNotes(notes);
+    closeEditModal();
+    renderNotes();
+  }
+
+  editSaveBtn.addEventListener('click', saveNote);
+  editCancelBtn.addEventListener('click', closeEditModal);
+  editClose.addEventListener('click', closeEditModal);
+  editOverlay.addEventListener('click', e => { if (e.target === editOverlay) closeEditModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeEditModal(); closeViewModal(); closeConfirm(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && editOverlay.classList.contains('open')) saveNote();
+  });
+
+  // ──────────────────────────────────────────
+  // View Modal
+  // ──────────────────────────────────────────
+  let viewingId = null;
+
+  function openViewModal(id) {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+    viewingId = id;
+    viewTitle.textContent = note.title || '无标题';
+    const tags = (note.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    viewMeta.innerHTML = `
+      ${note.mood ? `<span style="font-size:22px">${note.mood}</span>` : ''}
+      <span style="font-size:13px;color:var(--text3)">${fmtDateFull(note.createdAt)}</span>
+      ${tags}
+    `;
+    viewBody.textContent = note.content;
+    viewOverlay.classList.add('open');
+  }
+
+  function closeViewModal() {
+    viewOverlay.classList.remove('open');
+    viewingId = null;
+  }
+
+  viewClose.addEventListener('click', closeViewModal);
+  viewOverlay.addEventListener('click', e => { if (e.target === viewOverlay) closeViewModal(); });
+  viewEditBtn.addEventListener('click', () => {
+    const id = viewingId;
+    closeViewModal();
+    openEditModal(id);
+  });
+
+  // ──────────────────────────────────────────
+  // Delete Confirm
+  // ──────────────────────────────────────────
+  let deletingId = null;
+
+  function openConfirm(id) {
+    deletingId = id;
+    confirmOverlay.classList.add('open');
+  }
+  function closeConfirm() {
+    confirmOverlay.classList.remove('open');
+    deletingId = null;
+  }
+
+  confirmCancel.addEventListener('click', closeConfirm);
+  confirmOverlay.addEventListener('click', e => { if (e.target === confirmOverlay) closeConfirm(); });
+  confirmDelete.addEventListener('click', () => {
+    if (!deletingId) return;
+    notes = notes.filter(n => n.id !== deletingId);
+    saveNotes(notes);
+    closeConfirm();
+    renderNotes();
+    showToast('记录已删除');
+  });
+
+  // ──────────────────────────────────────────
+  // FAB & New button
+  // ──────────────────────────────────────────
+  document.getElementById('fabBtn').addEventListener('click', () => openEditModal(null));
+  document.getElementById('newBtn').addEventListener('click', () => openEditModal(null));
+
+  // ──────────────────────────────────────────
+  // Search & Filter
+  // ──────────────────────────────────────────
+  searchInput.addEventListener('input', renderNotes);
+  filterSelect.addEventListener('change', renderNotes);
+
+  // ──────────────────────────────────────────
+  // Toast
+  // ──────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  // ──────────────────────────────────────────
+  // Header date
+  // ──────────────────────────────────────────
+  function updateHeaderDate() {
+    const d = new Date();
+    headerDate.textContent = d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+  }
+  updateHeaderDate();
+
+  // ──────────────────────────────────────────
+  // Init
+  // ──────────────────────────────────────────
+  renderNotes();
+</script>
+</body>
+</html>
